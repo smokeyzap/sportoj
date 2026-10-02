@@ -1,0 +1,2032 @@
+openapi: 3.1.0
+info:
+  title: Trainingsapp API
+  version: 1.0.0
+  description: Bindend API-contract voor de tijdelijke PHP backend, de Lovable frontend en de latere Laravel drop-in
+    replacement.
+servers:
+- url: https://api.example.nl
+  description: Productie, vervang via environment configuratie
+- url: http://localhost:8080
+  description: Lokale ontwikkeling
+tags:
+- name: System
+- name: Auth
+- name: Me
+- name: Program
+- name: Assignments
+- name: Workouts
+- name: Sessions
+paths:
+  /health:
+    get:
+      tags:
+      - System
+      summary: Health check
+      operationId: health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    const: ok
+                  schema_version:
+                    type: string
+                  dataset_version:
+                    type: string
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Login en maak websessie
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: E-mailadres of wachtwoord is onjuist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: INVALID_CREDENTIALS
+                      message: E-mailadres of wachtwoord is onjuist.
+        '429':
+          description: Te veel loginpogingen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: RATE_LIMITED
+                      message: Te veel loginpogingen.
+  /api/v1/auth/csrf:
+    get:
+      tags:
+      - Auth
+      summary: Roteer en retourneer CSRF-token voor bestaande sessie
+      operationId: csrf
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfResponse'
+        '401':
+          description: Niet ingelogd.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd.
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - Auth
+      summary: Beëindig huidige websessie
+      operationId: logout
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Uitgelogd.
+        '401':
+          description: Niet ingelogd.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+  /api/v1/me:
+    get:
+      tags:
+      - Me
+      summary: Huidige gebruiker
+      operationId: getMe
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Niet ingelogd.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd.
+    patch:
+      tags:
+      - Me
+      summary: Wijzig naam of timezone
+      operationId: updateMe
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMeRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Niet ingelogd.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+        '422':
+          description: Validatiefout.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Validatiefout.
+  /api/v1/me/program/start:
+    post:
+      tags:
+      - Program
+      summary: Start trainingsprogramma
+      operationId: startProgram
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartProgramRequest'
+      responses:
+        '201':
+          description: Programma gestart.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NextActionResponse'
+        '409':
+          description: Er bestaat al een actief programma.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: ACTIVE_PROGRAM_EXISTS
+                      message: Er bestaat al een actief programma.
+        '422':
+          description: Ongeldige startpositie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: INVALID_START_POSITION
+                      message: Ongeldige startpositie.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+  /api/v1/me/today:
+    get:
+      tags:
+      - Program
+      summary: Bepaal de huidige aanbevolen actie
+      operationId: getToday
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NextActionResponse'
+        '401':
+          description: Niet ingelogd.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd.
+  /api/v1/me/program:
+    get:
+      tags:
+      - Program
+      summary: Volledige actuele programma- en voortgangsstatus
+      operationId: getProgram
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramStateResponse'
+        '404':
+          description: Geen actief of voltooid programma gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: NO_ACTIVE_PROGRAM
+                      message: Geen actief of voltooid programma gevonden.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+  /api/v1/me/history:
+    get:
+      tags:
+      - Program
+      summary: Gepagineerde workout-historie
+      operationId: getHistory
+      security:
+      - sessionCookie: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 25
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryResponse'
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+  /api/v1/me/program/continuation:
+    post:
+      tags:
+      - Program
+      summary: Beantwoord continuation decision na afwijkende workout
+      operationId: chooseContinuation
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContinuationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NextActionResponse'
+        '409':
+          description: Er staat geen continuation decision open.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: NO_CONTINUATION_DECISION
+                      message: Er staat geen continuation decision open.
+        '422':
+          description: Validatiefout.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Validatiefout.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+  /api/v1/me/program/blocks/{block_id}/extend:
+    post:
+      tags:
+      - Program
+      summary: Voeg één extra cyclus toe aan het beslisblok
+      operationId: extendBlock
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/BlockId'
+      - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NextActionResponse'
+        '409':
+          description: Het blok staat niet op een beslismoment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: BLOCK_NOT_READY_FOR_DECISION
+                      message: Het blok staat niet op een beslismoment.
+        '404':
+          description: Trainingsblok niet gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: BLOCK_NOT_FOUND
+                      message: Trainingsblok niet gevonden.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+  /api/v1/me/program/blocks/{block_id}/advance:
+    post:
+      tags:
+      - Program
+      summary: Ga naar het volgende trainingsblok
+      operationId: advanceBlock
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/BlockId'
+      - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NextActionResponse'
+        '409':
+          description: Het blok staat niet op een beslismoment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: BLOCK_NOT_READY_FOR_DECISION
+                      message: Het blok staat niet op een beslismoment.
+        '404':
+          description: Trainingsblok niet gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: BLOCK_NOT_FOUND
+                      message: Trainingsblok niet gevonden.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+  /api/v1/me/program/complete:
+    post:
+      tags:
+      - Program
+      summary: Rond programma formeel af na laatste blok
+      operationId: completeProgram
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NextActionResponse'
+        '409':
+          description: Het programma kan nog niet worden afgerond.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: PROGRAM_NOT_READY_TO_COMPLETE
+                      message: Het programma kan nog niet worden afgerond.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+  /api/v1/me/program/restart:
+    post:
+      tags:
+      - Program
+      summary: Start een nieuwe programma-run na een afgeronde run
+      operationId: restartProgram
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartProgramRequest'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NextActionResponse'
+        '409':
+          description: Er bestaat al een actief programma.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: ACTIVE_PROGRAM_EXISTS
+                      message: Er bestaat al een actief programma.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+  /api/v1/workout-assignments/{assignment_id}:
+    get:
+      tags:
+      - Assignments
+      summary: Workout assignment inclusief oefeningen ophalen
+      operationId: getAssignment
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/AssignmentId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentResponse'
+        '403':
+          description: Geen toegang tot deze assignment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Geen toegang tot deze assignment.
+        '404':
+          description: Assignment niet gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: ASSIGNMENT_NOT_FOUND
+                      message: Assignment niet gevonden.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+  /api/v1/workout-assignments/{assignment_id}/start:
+    post:
+      tags:
+      - Assignments
+      summary: Start of hervat programmaworkout
+      operationId: startAssignment
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/AssignmentId'
+      - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationWithNextResponse'
+        '403':
+          description: Geen toegang tot deze assignment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Geen toegang tot deze assignment.
+        '404':
+          description: Assignment niet gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: ASSIGNMENT_NOT_FOUND
+                      message: Assignment niet gevonden.
+        '409':
+          description: Er is al een andere workout gestart.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: ACTIVE_WORKOUT_EXISTS
+                      message: Er is al een andere workout gestart.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+  /api/v1/workout-assignments/{assignment_id}/complete:
+    post:
+      tags:
+      - Assignments
+      summary: Rond programmaworkout af
+      operationId: completeAssignment
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/AssignmentId'
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotesRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationWithNextResponse'
+        '403':
+          description: Geen toegang tot deze assignment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Geen toegang tot deze assignment.
+        '404':
+          description: Assignment niet gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: ASSIGNMENT_NOT_FOUND
+                      message: Assignment niet gevonden.
+        '409':
+          description: Actie is niet toegestaan vanuit de huidige status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: INVALID_ASSIGNMENT_STATE
+                      message: Actie is niet toegestaan vanuit de huidige status.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+  /api/v1/workout-assignments/{assignment_id}/skip:
+    post:
+      tags:
+      - Assignments
+      summary: Sla programmaworkout expliciet over
+      operationId: skipAssignment
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/AssignmentId'
+      - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationWithNextResponse'
+        '403':
+          description: Geen toegang tot deze assignment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Geen toegang tot deze assignment.
+        '404':
+          description: Assignment niet gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: ASSIGNMENT_NOT_FOUND
+                      message: Assignment niet gevonden.
+        '409':
+          description: Actie is niet toegestaan vanuit de huidige status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: INVALID_ASSIGNMENT_STATE
+                      message: Actie is niet toegestaan vanuit de huidige status.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+  /api/v1/workout-assignments/{assignment_id}/reopen:
+    post:
+      tags:
+      - Assignments
+      summary: Heropen completed of skipped assignment
+      operationId: reopenAssignment
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/AssignmentId'
+      - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationWithNextResponse'
+        '403':
+          description: Geen toegang tot deze assignment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Geen toegang tot deze assignment.
+        '404':
+          description: Assignment niet gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: ASSIGNMENT_NOT_FOUND
+                      message: Assignment niet gevonden.
+        '409':
+          description: Actie is niet toegestaan vanuit de huidige status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: INVALID_ASSIGNMENT_STATE
+                      message: Actie is niet toegestaan vanuit de huidige status.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+  /api/v1/workouts/{workout_id}:
+    get:
+      tags:
+      - Workouts
+      summary: Workouttemplate ophalen voor vrijwillige extra workout
+      operationId: getWorkout
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/WorkoutId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutResponse'
+        '404':
+          description: Workout niet gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: WORKOUT_NOT_FOUND
+                      message: Workout niet gevonden.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+  /api/v1/workouts/{workout_id}/sessions:
+    post:
+      tags:
+      - Sessions
+      summary: Start vrijwillige extra workout
+      operationId: startExtraWorkout
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/WorkoutId'
+      - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '201':
+          description: Extra workout gestart.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          description: Workout niet gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: WORKOUT_NOT_FOUND
+                      message: Workout niet gevonden.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+  /api/v1/workout-sessions/{session_id}/complete:
+    post:
+      tags:
+      - Sessions
+      summary: Rond vrijwillige extra workout af
+      operationId: completeExtraWorkout
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotesRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '403':
+          description: Geen toegang tot deze sessie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Geen toegang tot deze sessie.
+        '404':
+          description: Sessie niet gevonden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: SESSION_NOT_FOUND
+                      message: Sessie niet gevonden.
+        '409':
+          description: Sessie kan niet worden afgerond.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: INVALID_SESSION_STATE
+                      message: Sessie kan niet worden afgerond.
+        '401':
+          description: Niet ingelogd of sessie verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: UNAUTHENTICATED
+                      message: Niet ingelogd of sessie verlopen.
+        '419':
+          description: CSRF-token ongeldig of verlopen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                default:
+                  value:
+                    error:
+                      code: CSRF_MISMATCH
+                      message: CSRF-token ongeldig of verlopen.
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: training_session
+      description: Opaque sessietoken. Alleen de hash wordt server-side opgeslagen.
+  parameters:
+    CsrfHeader:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 32
+      description: CSRF-token uit login of GET /api/v1/auth/csrf.
+    AssignmentId:
+      name: assignment_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^[0-7][0-9A-HJKMNP-TV-Z]{25}$
+    BlockId:
+      name: block_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^[0-7][0-9A-HJKMNP-TV-Z]{25}$
+    WorkoutId:
+      name: workout_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^[0-7][0-9A-HJKMNP-TV-Z]{25}$
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^[0-7][0-9A-HJKMNP-TV-Z]{25}$
+  schemas:
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          examples:
+          - BLOCK_NOT_COMPLETED
+        message:
+          type: string
+        details:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+    ErrorResponse:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+    User:
+      type: object
+      required:
+      - id
+      - name
+      - email
+      - timezone
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        timezone:
+          type: string
+          examples:
+          - Europe/Amsterdam
+    UserResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+    CsrfResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - csrf_token
+          properties:
+            csrf_token:
+              type: string
+    LoginRequest:
+      type: object
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+    LoginResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - user
+          - csrf_token
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            csrf_token:
+              type: string
+    UpdateMeRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+    Exercise:
+      type: object
+      required:
+      - id
+      - sequence
+      - name
+      properties:
+        id:
+          type: string
+        sequence:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        sets:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+        reps:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+        duration_seconds:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+        notes:
+          type:
+          - string
+          - 'null'
+    WorkoutSummary:
+      type: object
+      required:
+      - id
+      - name
+      - category
+      - category_label
+      - protocol_type
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        category_label:
+          type: string
+        protocol_type:
+          type: string
+          enum:
+          - standard
+          - amrap
+          - countdown
+          - tabata
+          - circuit
+        video_url:
+          type:
+          - string
+          - 'null'
+          format: uri
+    WorkoutDetail:
+      allOf:
+      - $ref: '#/components/schemas/WorkoutSummary'
+      - type: object
+        required:
+        - protocol_config
+        - exercises
+        properties:
+          instructions:
+            type:
+            - string
+            - 'null'
+          protocol_config:
+            type: object
+            additionalProperties: true
+          exercises:
+            type: array
+            items:
+              $ref: '#/components/schemas/Exercise'
+    BlockSummary:
+      type: object
+      required:
+      - id
+      - name
+      - sequence
+      - default_cycle_count
+      - target_cycles
+      - status
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        sequence:
+          type: integer
+          minimum: 1
+        original_week_start:
+          type: integer
+        original_week_end:
+          type: integer
+        default_cycle_count:
+          type: integer
+          minimum: 1
+        target_cycles:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+          - prior_to_start
+          - not_started
+          - active
+          - decision_required
+          - completed
+    AssignmentSummary:
+      type: object
+      required:
+      - id
+      - cycle
+      - position
+      - day_label
+      - status
+      - is_extra_cycle
+      - workout
+      - block
+      properties:
+        id:
+          type: string
+        cycle:
+          type: integer
+          minimum: 1
+        position:
+          type: integer
+          minimum: 1
+          maximum: 6
+        day_label:
+          type: string
+          enum:
+          - maandag
+          - dinsdag
+          - woensdag
+          - donderdag
+          - vrijdag
+          - zaterdag
+        program_week:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 14
+          description: Alleen voor standaardcycli. Null voor extra cycli.
+        status:
+          type: string
+          enum:
+          - pending
+          - started
+          - completed
+          - skipped
+          - prior_to_start
+        is_extra_cycle:
+          type: boolean
+        block:
+          $ref: '#/components/schemas/BlockSummary'
+        workout:
+          $ref: '#/components/schemas/WorkoutSummary'
+    AssignmentDetail:
+      allOf:
+      - $ref: '#/components/schemas/AssignmentSummary'
+      - type: object
+        required:
+        - workout_detail
+        properties:
+          started_at:
+            type:
+            - string
+            - 'null'
+            format: date-time
+          completed_at:
+            type:
+            - string
+            - 'null'
+            format: date-time
+          skipped_at:
+            type:
+            - string
+            - 'null'
+            format: date-time
+          workout_detail:
+            $ref: '#/components/schemas/WorkoutDetail'
+    Progress:
+      type: object
+      required:
+      - block_number
+      - block_count
+      - cycle
+      - target_cycles
+      - processed
+      - total
+      - completed
+      - skipped
+      - pending
+      properties:
+        block_number:
+          type: integer
+        block_count:
+          type: integer
+        cycle:
+          type: integer
+        target_cycles:
+          type: integer
+        processed:
+          type: integer
+        total:
+          type: integer
+        completed:
+          type: integer
+        skipped:
+          type: integer
+        pending:
+          type: integer
+    WorkoutAction:
+      type: object
+      required:
+      - type
+      - assignment
+      - progress
+      properties:
+        type:
+          type: string
+          enum:
+          - workout
+          - resume_workout
+        reason:
+          type: string
+        assignment:
+          $ref: '#/components/schemas/AssignmentSummary'
+        progress:
+          $ref: '#/components/schemas/Progress'
+    OnboardingAction:
+      type: object
+      required:
+      - type
+      - program
+      properties:
+        type:
+          const: onboarding
+        program:
+          type: object
+          required:
+          - id
+          - name
+          - version
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            version:
+              type: string
+            original_weeks:
+              type: integer
+              const: 14
+    ContinuationDecisionAction:
+      type: object
+      required:
+      - type
+      - source_assignment
+      - options
+      properties:
+        type:
+          const: continuation_decision
+        source_assignment:
+          $ref: '#/components/schemas/AssignmentSummary'
+        options:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            type: string
+            enum:
+            - program_sequence
+            - last_workout_sequence
+    BlockDecisionAction:
+      type: object
+      required:
+      - type
+      - block
+      - summary
+      - options
+      properties:
+        type:
+          const: block_decision
+        block:
+          $ref: '#/components/schemas/BlockSummary'
+        summary:
+          type: object
+          required:
+          - completed
+          - skipped
+          - cycles_processed
+          properties:
+            completed:
+              type: integer
+            skipped:
+              type: integer
+            cycles_processed:
+              type: integer
+        options:
+          type: array
+          items:
+            type: string
+            enum:
+            - extend
+            - advance
+            - complete_program
+    ProgramCompletedAction:
+      type: object
+      required:
+      - type
+      - user_program_id
+      - completed_at
+      properties:
+        type:
+          const: program_completed
+        user_program_id:
+          type: string
+        completed_at:
+          type: string
+          format: date-time
+    NextAction:
+      oneOf:
+      - $ref: '#/components/schemas/OnboardingAction'
+      - $ref: '#/components/schemas/WorkoutAction'
+      - $ref: '#/components/schemas/ContinuationDecisionAction'
+      - $ref: '#/components/schemas/BlockDecisionAction'
+      - $ref: '#/components/schemas/ProgramCompletedAction'
+      discriminator:
+        propertyName: type
+    NextActionResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/NextAction'
+    StartProgramRequest:
+      type: object
+      required:
+      - start_mode
+      properties:
+        start_mode:
+          type: string
+          enum:
+          - beginning
+          - position
+        original_week:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 14
+        day_sequence:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 6
+      allOf:
+      - if:
+          properties:
+            start_mode:
+              const: position
+        then:
+          required:
+          - original_week
+          - day_sequence
+    ContinuationRequest:
+      type: object
+      required:
+      - mode
+      properties:
+        mode:
+          type: string
+          enum:
+          - program_sequence
+          - last_workout_sequence
+    NotesRequest:
+      type: object
+      properties:
+        notes:
+          type:
+          - string
+          - 'null'
+          maxLength: 5000
+    WorkoutSession:
+      type: object
+      required:
+      - id
+      - session_type
+      - status
+      - workout
+      - started_at
+      properties:
+        id:
+          type: string
+        session_type:
+          type: string
+          enum:
+          - program
+          - extra
+        status:
+          type: string
+          enum:
+          - started
+          - completed
+          - cancelled
+        workout:
+          $ref: '#/components/schemas/WorkoutSummary'
+        assignment_id:
+          type:
+          - string
+          - 'null'
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+    SessionResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/WorkoutSession'
+    MutationWithNextResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - assignment
+          - next_action
+          properties:
+            assignment:
+              $ref: '#/components/schemas/AssignmentSummary'
+            session:
+              oneOf:
+              - $ref: '#/components/schemas/WorkoutSession'
+              - type: 'null'
+            next_action:
+              $ref: '#/components/schemas/NextAction'
+    ProgramState:
+      type: object
+      required:
+      - id
+      - program
+      - status
+      - continuation_mode
+      - blocks
+      properties:
+        id:
+          type: string
+        program:
+          type: object
+          required:
+          - id
+          - name
+          - version
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            version:
+              type: string
+        status:
+          type: string
+          enum:
+          - active
+          - paused
+          - completed
+        continuation_mode:
+          type: string
+          enum:
+          - program_sequence
+          - last_workout_sequence
+        blocks:
+          type: array
+          items:
+            type: object
+            required:
+            - block
+            - cycles
+            properties:
+              block:
+                $ref: '#/components/schemas/BlockSummary'
+              cycles:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - number
+                  - is_extra
+                  - assignments
+                  properties:
+                    number:
+                      type: integer
+                    is_extra:
+                      type: boolean
+                    assignments:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/AssignmentSummary'
+    ProgramStateResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/ProgramState'
+    HistoryItem:
+      type: object
+      required:
+      - event_type
+      - occurred_at
+      - workout
+      properties:
+        event_type:
+          type: string
+          enum:
+          - completed
+          - skipped
+          - extra_completed
+        occurred_at:
+          type: string
+          format: date-time
+        workout:
+          $ref: '#/components/schemas/WorkoutSummary'
+        block:
+          oneOf:
+          - $ref: '#/components/schemas/BlockSummary'
+          - type: 'null'
+        cycle:
+          type:
+          - integer
+          - 'null'
+        assignment_id:
+          type:
+          - string
+          - 'null'
+        session_id:
+          type:
+          - string
+          - 'null'
+        notes:
+          type:
+          - string
+          - 'null'
+    HistoryResponse:
+      type: object
+      required:
+      - data
+      - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryItem'
+        meta:
+          type: object
+          required:
+          - page
+          - per_page
+          - total
+          - last_page
+          properties:
+            page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+            last_page:
+              type: integer
+    WorkoutResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/WorkoutDetail'
+    AssignmentResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AssignmentDetail'
