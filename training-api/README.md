@@ -26,6 +26,8 @@ tests/          Unit/, Acceptance/, Support/, acceptance_report.php
 
 ## Installatie op een server
 
+Geen SSH? Zie [`docs/INSTALL_WITHOUT_SSH.md`](docs/INSTALL_WITHOUT_SSH.md) (FTP/bestandsbeheer + browser-installer).
+
 1. Zet de code buiten de publieke map; alleen `public/` is de webroot (HTTPS verplicht in productie).
 2. `cp .env.example .env` (liefst buiten de webroot en met `ENV_FILE=/pad/.env`), vul database en `FRONTEND_ORIGINS` in.
    Geheimen horen niet in Git. De belangrijkste variabelen staan in `.env.example`; alle zijn ook als echte omgevingsvariabele te zetten.
