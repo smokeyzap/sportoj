@@ -83,8 +83,7 @@ Test-suite: 260 tests. Elk antwoord in de suite wordt automatisch gevalideerd te
 `tests/known_contract_gaps.php` mogen buiten het contract vallen. `tests/acceptance_report.php` zet het JUnit-log om naar een tabel per AT.
 
 **Niet of beperkt getest:**
-- De GitHub Actions-workflow is niet uitgevoerd (geen runner in deze omgeving); alleen de YAML-syntax is gecontroleerd. De matrix (PHP 8.2 + MariaDB 10.6) is dus onbewezen; lokaal draaide PHP 8.3.6 met MariaDB 10.11.14.
-- MariaDB 10.6 en 11.4, en PHP 8.2, zijn nooit lokaal gedraaid.
+- CI is gedraaid op GitHub (run op commit f7da969): lint, shellcheck en de volledige suite slaagden op PHP 8.2 + MariaDB 10.6 en PHP 8.3 + MariaDB 11.4; het per-AT-rapport slaagde ook. Niet nagekeken is welke tests daar eventueel zijn overgeslagen (`--display-skipped` staat in het log). Lokaal draaide PHP 8.3.6 met MariaDB 10.11.14.
 - Echte Apache/nginx/php-fpm-deployments en TLS (alleen PHP's ingebouwde server over HTTP; `Secure`-cookie is als header gecontroleerd).
 - Bcrypt-fallback op een host zonder Argon2 (alleen het rehash-pad van een bcrypt-hash naar Argon2id is getest).
 - Externe backup-bestemming, cron en e-mail/alarmhooks (alleen met lokale testcommando's).
