@@ -66,6 +66,13 @@ final class OpenApiValidator
         if ($resp === null) {
             return ["UNDOCUMENTED:$method $template $status"];
         }
+        $documentedCode = $resp['content']['application/json']['examples']['default']['value']['error']['code'] ?? null;
+        $actual = json_decode((string) $body, true);
+        $actualCode = is_array($actual) ? ($actual['error']['code'] ?? null) : null;
+        if ($documentedCode !== null && $actualCode !== null && $actualCode !== $documentedCode) {
+            // The status is documented but with a different error code than the one the spec shows for it.
+            return ["UNDOCUMENTED:$method $template $status"];
+        }
         $schema = $resp['content']['application/json']['schema'] ?? null;
         if ($schema === null) {
             return $body === null || $body === '' ? [] : ["$method $template $status documents no body but one was sent"];

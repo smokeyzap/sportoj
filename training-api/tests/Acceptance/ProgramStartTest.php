@@ -109,6 +109,22 @@ final class ProgramStartTest extends ApiTestCase
         self::assertSame('ACTIVE_PROGRAM_EXISTS', $r->errorCode());
     }
 
+    public function testRestartValidatesLikeStart(): void
+    {
+        $c = $this->loggedIn();
+        $r = $c->post('/api/v1/me/program/restart', ['start_mode' => 'position', 'original_week' => 15, 'day_sequence' => 1]);
+        self::assertSame([422, 'INVALID_START_POSITION'], [$r->status, $r->errorCode()]);
+        $r = $c->post('/api/v1/me/program/restart', ['start_mode' => 'sideways']);
+        self::assertSame([422, 'VALIDATION_ERROR'], [$r->status, $r->errorCode()]);
+        self::assertSame(0, (int) $this->db->value('SELECT COUNT(*) FROM user_programs'));
+    }
+
+    public function testRestartWithoutAnEarlierRunBehavesLikeStart(): void
+    {
+        $c = $this->loggedIn();
+        self::assertSame(201, $c->post('/api/v1/me/program/restart', ['start_mode' => 'beginning'])->status);
+    }
+
     public function testOnboardingBeforeStart(): void
     {
         $c = $this->loggedIn();

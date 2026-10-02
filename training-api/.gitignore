@@ -8,3 +8,4 @@
 !/storage/ratelimit/.gitkeep
 /.phpunit.result.cache
 /.phpunit.cache/
+tests/.gaps.log

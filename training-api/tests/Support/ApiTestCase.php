@@ -113,23 +113,29 @@ abstract class ApiTestCase extends TestCase
         return $r->data();
     }
 
+    /** @var array<string,string> */
+    private array $aidCache = [];
+
     /** Public id of the assignment at block sequence / cycle / position of the current run. */
     protected function aid(TestClient $c, int $block, int $cycle, int $pos): string
     {
-        foreach ($this->programState($c)['blocks'] as $b) {
-            if ($b['block']['sequence'] === $block) {
+        $key = spl_object_id($c) . ":$block:$cycle:$pos";
+        if (!isset($this->aidCache[$key])) {
+            foreach ($this->programState($c)['blocks'] as $b) {
                 foreach ($b['cycles'] as $cy) {
-                    if ($cy['number'] === $cycle) {
-                        foreach ($cy['assignments'] as $a) {
-                            if ($a['position'] === $pos) {
-                                return $a['id'];
-                            }
-                        }
+                    foreach ($cy['assignments'] as $a) {
+                        $this->aidCache[spl_object_id($c) . ':' . $b['block']['sequence'] . ':' . $cy['number'] . ':' . $a['position']] = $a['id'];
                     }
                 }
             }
         }
-        self::fail("assignment $block/$cycle/$pos not found");
+        return $this->aidCache[$key] ?? self::fail("assignment $block/$cycle/$pos not found");
+    }
+
+    /** Forget cached ids (after a restart the same positions map to new assignments). */
+    protected function forgetIds(): void
+    {
+        $this->aidCache = [];
     }
 
     /** @return array<string,mixed> */

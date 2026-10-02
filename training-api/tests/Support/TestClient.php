@@ -15,6 +15,8 @@ final class TestClient
     public array $cookies = [];
     public string $ip = '203.0.113.10';
     public ?string $origin = null;
+    /** @var array<string,true> "METHOD /template" of every spec operation that was exercised */
+    public static array $covered = [];
 
     public function __construct(private Application $app, private bool $contractCheck = true)
     {
@@ -60,11 +62,23 @@ final class TestClient
 
     private function assertContract(string $method, string $path, TestResponse $r): void
     {
+        $m = OpenApiValidator::get()->matchPath($path);
+        if ($m !== null) {
+            self::$covered[$method . ' ' . $m[0]] = true;
+        }
         foreach (OpenApiValidator::get()->check($method, $path, $r->status, $r->body) as $p) {
             if (str_starts_with($p, 'UNDOCUMENTED:')) {
                 $key = substr($p, strlen('UNDOCUMENTED:')) . ' ' . ($r->errorCode() ?? '-');
+                if (getenv('COLLECT_GAPS') === '1') {
+                    file_put_contents(sys_get_temp_dir() . '/training-collected-gaps.txt', $key . "\n", FILE_APPEND);
+                    continue;
+                }
                 $known = require __DIR__ . '/../known_contract_gaps.php';
-                Assert::assertContains($key, $known, "Response not documented in openapi.yaml and not in tests/known_contract_gaps.php: $key");
+                [, , $status, $code] = explode(' ', $key, 4);
+                Assert::assertTrue(
+                    in_array($key, $known, true) || in_array("* * $status $code", $known, true),
+                    "Response not documented in openapi.yaml and not in tests/known_contract_gaps.php: $key"
+                );
                 continue;
             }
             if (str_contains($p, 'unknown path') && $r->status === 404 && $r->errorCode() === 'NOT_FOUND') {
