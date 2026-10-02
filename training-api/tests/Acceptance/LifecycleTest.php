@@ -125,7 +125,7 @@ final class LifecycleTest extends ApiTestCase
         self::assertNull($c->get('/api/v1/me/history')->at('data.0.notes'));
     }
 
-    public function testStartedAsRecommendedIsFalseForDeviatingWorkout(): void
+    public function testAT050DeviatingWorkoutIsRegisteredAsNotRecommended(): void
     {
         // AT-050
         $c = $this->loggedIn();

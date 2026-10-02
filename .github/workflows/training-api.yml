@@ -110,4 +110,8 @@ jobs:
 
       - name: Acceptance and contract tests
         # --display-skipped makes a silently skipped backup/installer test visible in the log.
-        run: vendor/bin/phpunit --testsuite acceptance --display-skipped
+        run: vendor/bin/phpunit --testsuite acceptance --display-skipped --log-junit build/junit.xml
+
+      - name: Per-acceptance-test report (fails when an AT of phase 1a has no passing test)
+        if: always()
+        run: php tests/acceptance_report.php build/junit.xml | tee -a "$GITHUB_STEP_SUMMARY"
