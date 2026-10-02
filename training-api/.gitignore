@@ -1,0 +1,12 @@
+/vendor/
+/.env
+/storage/install.key
+/storage/installed.lock
+/storage/logs/*
+/storage/ratelimit/*
+!/storage/logs/.gitkeep
+!/storage/ratelimit/.gitkeep
+/.phpunit.result.cache
+/.phpunit.cache/
+tests/.gaps.log
+/build/

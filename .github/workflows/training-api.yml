@@ -1,0 +1,117 @@
+name: training-api
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths: ['training-api/**', 'docs/spec/**', '.github/workflows/training-api.yml']
+  pull_request:
+    paths: ['training-api/**', 'docs/spec/**', '.github/workflows/training-api.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: training-api-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: training-api
+
+jobs:
+  static:
+    name: Lint (PHP, shell, composer)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+          coverage: none
+      - name: composer validate
+        run: composer validate --no-check-publish --strict
+      - name: php -l on all sources
+        run: |
+          set -e
+          find app bootstrap bin public tests -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+      - name: shellcheck backup scripts
+        run: shellcheck scripts/*.sh
+
+  tests:
+    name: PHP ${{ matrix.php }} / MariaDB ${{ matrix.mariadb }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { php: '8.2', mariadb: '10.6' }   # minimum supported versions
+          - { php: '8.3', mariadb: '11.4' }   # current versions
+    services:
+      mariadb:
+        image: mariadb:${{ matrix.mariadb }}
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    env:
+      # The suite drops and recreates databases whose name contains "test" (training_test, training_test_install, training_test_restore).
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: 3306
+      TEST_DB_USERNAME: root
+      TEST_DB_PASSWORD: root
+      TEST_DB_DATABASE: training_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, pdo_mysql, openssl, sodium, pcntl, posix, json, filter
+          tools: composer:v2
+          coverage: none
+          ini-values: assert.exception=1
+
+      # Backup/restore tests (AT-150..152) run the real scripts and need mariadb / mariadb-dump.
+      # The runner image ships a MySQL client that conflicts with the MariaDB one; the DB itself is the service container.
+      - name: Install MariaDB client tools
+        working-directory: .
+        run: |
+          sudo apt-get update
+          sudo apt-get remove -y mysql-client mysql-client-8.0 mysql-client-core-8.0 mysql-server-8.0 mysql-server-core-8.0 || true
+          sudo apt-get install -y mariadb-client
+          mariadb --version
+          mariadb-dump --version
+
+      - name: Cache composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ matrix.php }}-${{ hashFiles('training-api/composer.lock') }}
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Wait for MariaDB
+        run: |
+          for i in $(seq 1 30); do
+            mariadb --protocol=tcp -h 127.0.0.1 -uroot -proot -e 'SELECT VERSION()' && exit 0
+            sleep 2
+          done
+          echo "MariaDB did not become ready" >&2
+          exit 1
+
+      - name: Unit tests
+        run: vendor/bin/phpunit --testsuite unit
+
+      - name: Acceptance and contract tests
+        # --display-skipped makes a silently skipped backup/installer test visible in the log.
+        run: vendor/bin/phpunit --testsuite acceptance --display-skipped --log-junit build/junit.xml
+
+      - name: Per-acceptance-test report (fails when an AT of phase 1a has no passing test)
+        if: always()
+        run: php tests/acceptance_report.php build/junit.xml | tee -a "$GITHUB_STEP_SUMMARY"

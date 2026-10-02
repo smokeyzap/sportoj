@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         failOnWarning="true"
+         failOnRisky="true">
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="acceptance">
+            <directory>tests/Acceptance</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <!-- Overridable via environment. The suite DROPS AND RECREATES TEST_DB_DATABASE: never point it at real data. -->
+        <env name="TEST_DB_HOST" value="127.0.0.1" force="false"/>
+        <env name="TEST_DB_PORT" value="3306" force="false"/>
+        <env name="TEST_DB_USERNAME" value="training" force="false"/>
+        <env name="TEST_DB_PASSWORD" value="training" force="false"/>
+        <env name="TEST_DB_DATABASE" value="training_test" force="false"/>
+    </php>
+</phpunit>
