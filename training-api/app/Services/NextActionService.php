@@ -7,17 +7,25 @@ use App\Presenters\Presenter;
 use App\Repositories\ProgramRepository;
 use App\Repositories\UserProgramRepository;
 use App\Support\Clock;
+use App\Support\Db;
 use LogicException;
 
 /** Builds the NextAction payload of GET /me/today and of every mutation (BR-030..BR-032, BR-075). */
 final class NextActionService
 {
-    public function __construct(private UserProgramRepository $ups, private ProgramRepository $programs)
+    public function __construct(private Db $db, private UserProgramRepository $ups, private ProgramRepository $programs)
     {
     }
 
     /** @return array<string,mixed> */
     public function forUser(int $userId): array
+    {
+        // One snapshot for all the reads below (a no-op inside a mutation's own transaction).
+        return $this->db->transaction(fn (): array => $this->build($userId));
+    }
+
+    /** @return array<string,mixed> */
+    private function build(int $userId): array
     {
         $up = $this->ups->latestForUser($userId);
         if ($up === null) {

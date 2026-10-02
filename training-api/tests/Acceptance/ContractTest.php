@@ -154,6 +154,32 @@ final class ContractTest extends ApiTestCase
         return (string) preg_replace('/\{\w+\}/', '01ARZ3NDEKTSV4RRFFQ69G5FAV', $template);
     }
 
+    public function testEveryRefInTheSpecResolves(): void
+    {
+        $doc = OpenApiValidator::get()->document();
+        $count = 0;
+        $walk = function (mixed $node) use (&$walk, &$count, $doc): void {
+            if (!is_array($node)) {
+                return;
+            }
+            foreach ($node as $k => $v) {
+                if ($k === '$ref' && is_string($v)) {
+                    $count++;
+                    $target = $doc;
+                    foreach (explode('/', substr($v, 2)) as $part) {
+                        self::assertIsArray($target, "unresolvable $v");
+                        self::assertArrayHasKey($part, $target, "unresolvable $v");
+                        $target = $target[$part];
+                    }
+                } else {
+                    $walk($v);
+                }
+            }
+        };
+        $walk($doc);
+        self::assertGreaterThan(100, $count);
+    }
+
     public function testKnownGapsAreWellFormed(): void
     {
         $known = require dirname(__DIR__) . '/known_contract_gaps.php';

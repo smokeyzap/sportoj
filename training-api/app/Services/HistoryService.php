@@ -20,6 +20,12 @@ final class HistoryService
     /** @return array{data:list<array<string,mixed>>,meta:array<string,int>} */
     public function page(int $userId, int $page, int $perPage): array
     {
+        return $this->db->transaction(fn (): array => $this->build($userId, $page, $perPage));
+    }
+
+    /** @return array{data:list<array<string,mixed>>,meta:array<string,int>} */
+    private function build(int $userId, int $page, int $perPage): array
+    {
         $total = (int) $this->db->value(
             "SELECT (SELECT COUNT(*) FROM workout_sessions WHERE user_id = ? AND status = 'completed')
                   + (SELECT COUNT(*) FROM workout_assignments a

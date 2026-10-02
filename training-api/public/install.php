@@ -7,4 +7,4 @@ use App\Install\WebInstaller;
 
 $app = require dirname(__DIR__) . '/bootstrap/app.php';
 $installer = new Installer($app->config, $app->db(), $app->clock());
-(new WebInstaller($installer, $app->config, $app->rateLimiter(), $app->logger()))->handle(Request::fromGlobals())->send();
+(new WebInstaller($installer, $app->config, $app->rateLimiter(), $app->logger()))->handle(Request::fromGlobals($app->config->bool('TRUST_PROXY_HEADERS', false)))->send();

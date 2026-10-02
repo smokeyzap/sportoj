@@ -21,7 +21,11 @@ final class Request
     ) {
     }
 
-    public static function fromGlobals(): self
+    /**
+     * @param bool $trustProxyHeaders when the app runs behind a reverse proxy that you control, take the client IP from the
+     *             LAST X-Forwarded-For hop (the one appended by that proxy). Never enable it without such a proxy: clients could spoof it.
+     */
+    public static function fromGlobals(bool $trustProxyHeaders = false): self
     {
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
         $path = rawurldecode((string) parse_url($uri, PHP_URL_PATH));
@@ -49,7 +53,15 @@ final class Request
             }
         }
         $body = (string) file_get_contents('php://input', false, null, 0, 1_048_577);
-        return new self(strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')), $path, $query, $headers, $cookies, $body, (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'));
+        $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+        if ($trustProxyHeaders && isset($headers['x-forwarded-for'])) {
+            $hops = array_map('trim', explode(',', $headers['x-forwarded-for']));
+            $last = end($hops);
+            if ($last !== false && filter_var($last, FILTER_VALIDATE_IP) !== false) {
+                $ip = $last;
+            }
+        }
+        return new self(strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')), $path, $query, $headers, $cookies, $body, $ip);
     }
 
     public function header(string $name): ?string

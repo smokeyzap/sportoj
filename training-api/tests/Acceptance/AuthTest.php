@@ -93,6 +93,16 @@ final class AuthTest extends ApiTestCase
         self::assertSame('VALIDATION_ERROR', $c->post('/api/v1/auth/login', ['email' => 'a@example.nl', 'password' => ''])->errorCode());
     }
 
+    public function testHugePasswordIsRejectedBeforeAnyHashing(): void
+    {
+        $this->createUser();
+        $t = microtime(true);
+        $r = $this->anonymous()->post('/api/v1/auth/login', ['email' => 'a@example.nl', 'password' => str_repeat('x', 200_000)]);
+        self::assertSame(422, $r->status);
+        self::assertSame('VALIDATION_ERROR', $r->errorCode());
+        self::assertLessThan(0.5, microtime(true) - $t);
+    }
+
     public function testAT012MutationRequiresValidCsrfToken(): void
     {
         $c = $this->loggedIn();

@@ -107,7 +107,7 @@ final class Application
 
     public function nextAction(): NextActionService
     {
-        return $this->once(NextActionService::class, fn () => new NextActionService($this->userPrograms(), $this->programs()));
+        return $this->once(NextActionService::class, fn () => new NextActionService($this->db(), $this->userPrograms(), $this->programs()));
     }
 
     public function programService(): ProgramService

@@ -151,6 +151,12 @@ final class ProgramService
     /** GET /me/program. @return array<string,mixed>|null */
     public function state(int $userId): ?array
     {
+        return $this->db->transaction(fn (): ?array => $this->buildState($userId));
+    }
+
+    /** @return array<string,mixed>|null */
+    private function buildState(int $userId): ?array
+    {
         $up = $this->ups->latestForUser($userId);
         if ($up === null) {
             return null;

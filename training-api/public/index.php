@@ -6,7 +6,7 @@ use App\Http\Response;
 
 try {
     $app = require dirname(__DIR__) . '/bootstrap/app.php';
-    $app->kernel()->handle(Request::fromGlobals())->send();
+    $app->kernel()->handle(Request::fromGlobals($app->config->bool('TRUST_PROXY_HEADERS', false)))->send();
 } catch (Throwable $e) {
     // Boot failure (e.g. invalid configuration): never leak details.
     error_log('boot failure: ' . $e->getMessage());

@@ -38,6 +38,8 @@ final class AuthService
         }
         if (!is_string($password) || $password === '') {
             $errors['password'] = 'Verplicht.';
+        } elseif (strlen($password) > 1024) {
+            $errors['password'] = 'Maximaal 1024 bytes.';   // do not let a huge body make us hash megabytes
         }
         if ($errors !== []) {
             throw ApiException::validation($errors);
